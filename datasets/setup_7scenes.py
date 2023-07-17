@@ -14,7 +14,7 @@ def mkdir(directory):
 mkdir(src_folder)
 os.chdir(src_folder)
 
-for ds in ['chess', 'fire', 'heads', 'office', 'pumpkin', 'redkitchen', 'stairs']:
+for ds in ["redkitchen"]:
 	
 	print("=== Downloading 7scenes Data:", ds, "===============================")
 
