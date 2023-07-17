@@ -6,7 +6,6 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-import poselib
 import skimage
 import torch
 from pykdtree.kdtree import KDTree
@@ -156,38 +155,6 @@ def divide_into_cubes(min_bound, max_bound, cube_size=0.5):
     return cubes
 
 
-def evaluate_pose_quality(
-    image_coordinates,
-    coord_map,
-    params,
-    pose_gt,
-    return_inliers=False,
-    return_pose=False,
-    return_errors_only=False,
-):
-    f, c1, c2 = params[:3].numpy()
-    pairs = []
-    for j, (x, y) in enumerate(image_coordinates):
-        xy = [x, y]
-        xyz = coord_map[j]
-        pairs.append((xy, xyz))
-    pose, info = localize_pose_lib(pairs, f, c1, c2)
-
-    error, r_err, t_err = compute_error(pose_gt.numpy(), pose)
-    errors, inlier_ratios = map(
-        lambda du: np.round(du, 3), [error, info["inlier_ratio"]]
-    )
-    if return_errors_only:
-        return error, r_err, t_err
-    if return_inliers and return_pose:
-        return errors, inlier_ratios, pose, info["inliers"]
-    elif return_inliers:
-        return errors, inlier_ratios, info["inliers"]
-    elif return_pose:
-        return errors, inlier_ratios, pose
-    return errors, inlier_ratios
-
-
 def kp_map_to_tree(kp_maps):
     """
     convert a keypoint map into a tree to query closest point
@@ -208,31 +175,6 @@ def compute_error(pose_gt, pose):
 
     error = compute_error_max_rot_trans(pose_gt, est_pose)
     return error
-
-
-# @profile
-def localize_pose_lib(pairs, f, c1, c2, max_error=16.0):
-    """
-    using pose lib to compute (usually best)
-    """
-    camera = {
-        "model": "SIMPLE_PINHOLE",
-        "height": int(c1 * 2),
-        "width": int(c2 * 2),
-        "params": [f, c1, c2],
-    }
-    object_points = []
-    image_points = []
-    for xy, xyz in pairs:
-        xyz = np.array(xyz).reshape((3, 1))
-        xy = np.array(xy)
-        xy = xy.reshape((2, 1)).astype(np.float64)
-        image_points.append(xy)
-        object_points.append(xyz)
-    pose, info = poselib.estimate_absolute_pose(
-        image_points, object_points, camera, {"max_reproj_error": max_error}, {}
-    )
-    return pose, info
 
 
 def compute_error_max_rot_trans(pgt_pose, est_pose):
