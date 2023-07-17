@@ -2,9 +2,9 @@ import argparse
 import random
 import time
 from pathlib import Path
+import torch
 import dsacstar
 import numpy as np
-import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
@@ -62,6 +62,24 @@ def return_opt():
         help="enforce predicted scene coordinates to be this far in front of the camera plane, in meters",
     )
 
+    parser.add_argument('--hypotheses', '-hyps', type=int, default=64,
+                        help='number of hypotheses, i.e. number of RANSAC iterations')
+
+    parser.add_argument('--threshold', '-t', type=float, default=10,
+                        help='inlier threshold in pixels (RGB) or centimeters (RGB-D)')
+
+    parser.add_argument('--inlieralpha', '-ia', type=float, default=100,
+                        help='alpha parameter of the soft inlier count; controls the softness of the hypotheses score distribution; lower means softer')
+
+    parser.add_argument('--weightrot', '-wr', type=float, default=1.0,
+                        help='weight of rotation part of pose loss')
+
+    parser.add_argument('--weighttrans', '-wt', type=float, default=100.0,
+                        help='weight of translation part of pose loss')
+
+    parser.add_argument('--maxpixelerror', '-maxerrr', type=float, default=100,
+                        help='maximum reprojection (RGB, in px) or 3D distance (RGB-D, in cm) error when checking pose consistency towards all measurements; error is clamped to this value for stability')
+
     parser.add_argument(
         "--maxdepth",
         "-maxd",
@@ -99,8 +117,7 @@ def return_opt():
 
 
 def main_with_gt_keypoints(seed):
-    start_time = time.time()
-    debug_mode = False
+    debug_mode = True
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -137,15 +154,16 @@ def main_with_gt_keypoints(seed):
 
     net_weights = f"{opt.network}-{opt.dataset}-mask=False"
     if Path(net_weights).is_file():
-        print(f"Found stage 1 training weights, skipping training")
+        print(f"Found stage 1 training weights at {net_weights}")
         network.load_state_dict(torch.load(net_weights))
-    else:
         train_loop(
             network,
             trainset_loader,
             epochs,
             opt,
         )
+    else:
+        print(f"Init weights not found at {net_weights}")
 
 
 def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
@@ -160,7 +178,7 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
 
             image = sample["image"]
             gt_pose = sample["pose"].float()
-            gt_pose = gt_pose[0][0:3, :]
+            gt_pose = gt_pose[0]
 
             # create camera calibration matrix
             focal_length = float(sample["focal"].item())
