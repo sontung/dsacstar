@@ -8,7 +8,6 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-import dsac_test
 from dataset import CamLocDataset
 from network_dsac import DsacNet
 from utils import return_pixel_grid_dsac
@@ -147,26 +146,6 @@ def main_with_gt_keypoints(seed):
             epochs,
             opt,
         )
-
-    val_ds = CamLocDataset(
-        images_full_dir=opt.image_dir,
-        dataset_name=opt.dataset,
-        training=False,
-        augment=False,
-        nb_preloaded_images=0,
-        debug=True,
-        using_filter=False,
-        nb_images=100 if debug_mode else -1,
-        disable_coord_map=True,
-        return_true_pose=True,
-    )
-    val_ds_loader = DataLoader(val_ds, batch_size=6, shuffle=False, num_workers=4)
-    score1 = dsac_test.evaluation_loop_full_dsac_pixel_grid_full(
-        network, val_ds_loader, "cuda"
-    )
-
-    print(f"Took {(time.time()-start_time)/3600} hours")
-    return score1,
 
 
 def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
