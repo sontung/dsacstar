@@ -1,17 +1,19 @@
+import json
 import math
 import pickle
 import random
+import sys
 from pathlib import Path
 
+import cv2
 import numpy as np
 import torch
 from skimage import io
 from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm import tqdm
-
 import colmap_read
-from utils import read_image_list, return_pose_mat, return_pose_mat_no_inv, transform_kp_aug_fast, rotate_image
+import utils
 
 
 def prepare_kp_map(img_coords, image):
@@ -73,8 +75,10 @@ class CamLocDataset(Dataset):
         self.train = training
         self.recon_images = colmap_read.read_images_binary(f"{self.sfm_model_dir}/images.bin")
         self.recon_cameras = colmap_read.read_cameras_binary(f"{self.sfm_model_dir}/cameras.bin")
+        self.recon_points = colmap_read.read_points3D_binary(f"{self.sfm_model_dir}/points3D.bin")
         if len(self.recon_cameras) > 1:
             print("Warning, there are more than one camera from the pGT.")
+
         self.debug = debug
         self.image_height = image_height
         self.nb_images = nb_images  # how many images to use
@@ -108,7 +112,7 @@ class CamLocDataset(Dataset):
         self.images_cache = {}
         self.image_name2id = {}
         self.image_id2kp = {}
-        self.test_images_list = read_image_list(self.test_file)
+        self.test_images_list = utils.read_image_list(self.test_file)
         self.img_names = []
         self.invalid_number = 2**64 - 1
         if img_names is None:
@@ -227,7 +231,6 @@ class CamLocDataset(Dataset):
 
     def prepare_coord_map(self, img_id, image):
         img_coords = self.image_id2kp[str(img_id)]
-        recon_points = colmap_read.read_points3D_binary(f"{self.sfm_model_dir}/points3D.bin")
         assert len(img_coords) > 0
         if self.disable_coord_map:
             return None, img_coords, None, None, None
@@ -236,7 +239,7 @@ class CamLocDataset(Dataset):
         xyz_arr = []
         uv_arr = []
         for x, y, pid in img_coords:
-            point3d = recon_points[pid]
+            point3d = self.recon_points[pid]
             coord_map[y, x] = point3d.xyz
             pid_map[y, x] = pid
             xyz_arr.append(point3d.xyz)
@@ -267,9 +270,9 @@ class CamLocDataset(Dataset):
         qvec = self.recon_images[img_id].qvec
         tvec = self.recon_images[img_id].tvec
         if not self.return_true_pose:
-            pose = return_pose_mat_no_inv(qvec, tvec)
+            pose = utils.return_pose_mat_no_inv(qvec, tvec)
         else:
-            pose = return_pose_mat(qvec, tvec)
+            pose = utils.return_pose_mat(qvec, tvec)
         return camera_id, focal_length, pose, qvec, tvec
 
     def prepare_cam_info_no_inverse(self, img_id):
@@ -277,7 +280,7 @@ class CamLocDataset(Dataset):
         focal_length = self.recon_cameras[camera_id].params[0]
         qvec = self.recon_images[img_id].qvec
         tvec = self.recon_images[img_id].tvec
-        pose_no_inv = return_pose_mat_no_inv(qvec, tvec)
+        pose_no_inv = utils.return_pose_mat_no_inv(qvec, tvec)
         cam_mat = np.eye(3)
         cam_mat[0, 0] = focal_length
         cam_mat[1, 1] = focal_length
@@ -309,6 +312,8 @@ class CamLocDataset(Dataset):
                 {
                     "coord_map": coord_map,
                     "pid_map": pid_map,
+                    "xyz_arr": xyz_arr,
+                    "uv_arr": uv_arr
                 }
             )
 
@@ -344,7 +349,7 @@ class CamLocDataset(Dataset):
             image_transformed = cur_image_transform(image)
 
             if not self.whole_image:
-                keypoints, valid_keypoints, kp_map, mask = transform_kp_aug_fast(
+                keypoints, valid_keypoints, kp_map, mask = utils.transform_kp_aug_fast(
                     kp_indices,
                     self.image_height,
                     scale_factor,
@@ -376,7 +381,7 @@ class CamLocDataset(Dataset):
 
             focal_length *= scale_factor
             if angle != 0:
-                image = rotate_image(
+                image = utils.rotate_image(
                     image_transformed, angle, 1, "constant", cval=-1
                 )
 
