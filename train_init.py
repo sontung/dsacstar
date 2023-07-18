@@ -135,17 +135,12 @@ def main_with_gt_keypoints(seed):
 
     epochs = int(opt.iterations / len(trainset)) if not debug_mode else 1
 
-    net_weights = f"{opt.network}-{opt.dataset}-mask=False"
-    if Path(net_weights).is_file():
-        print(f"Found stage 1 training weights, skipping training")
-        network.load_state_dict(torch.load(net_weights))
-    else:
-        train_loop(
-            network,
-            trainset_loader,
-            epochs,
-            opt,
-        )
+    train_loop(
+        network,
+        trainset_loader,
+        epochs,
+        opt,
+    )
 
 
 def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
@@ -258,9 +253,9 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
 
             iteration = iteration + 1
 
-        torch.save(
-            network.state_dict(), f"{opt.network}-{opt.dataset}-mask={using_masks}"
-        )
+    torch.save(
+        network.state_dict(), f"{opt.network}-{opt.dataset}-mask={using_masks}"
+    )
 
 
 if __name__ == "__main__":
