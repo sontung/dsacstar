@@ -154,6 +154,7 @@ def main_with_gt_keypoints(seed):
     net_weights = f"{opt.network}-{opt.dataset}-mask=False"
     if Path(net_weights).is_file():
         print(f"Found stage 1 training weights at {net_weights}")
+        print(f"Network will be saved into {opt.network}-{opt.dataset}-e2e-mask=False")
         network.load_state_dict(torch.load(net_weights))
         train_loop(
             network,
@@ -210,7 +211,7 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
             iteration = iteration + 1
 
     torch.save(
-        network.state_dict(), f"checkpoints/{opt.network}-{opt.dataset}-e2e-mask={using_masks}"
+        network.state_dict(), f"{opt.network}-{opt.dataset}-e2e-mask={using_masks}"
     )
 
 
