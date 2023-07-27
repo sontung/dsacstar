@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader
 
 from dataset import CamLocDataset
 from network_dsac import DsacNet
-from utils import return_pixel_grid_dsac
 
 
 def return_opt():
@@ -117,7 +116,7 @@ def return_opt():
 
 
 def main_with_gt_keypoints(seed):
-    debug_mode = True
+    debug_mode = False
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -170,7 +169,6 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
     network.train()
     optimizer = optim.Adam(network.parameters(), lr=opt.learningrate)
     iteration = 0
-    pixel_grid = return_pixel_grid_dsac()
 
     for epoch in range(epochs):
         for sample in trainset_loader:
@@ -180,14 +178,7 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
             gt_pose = sample["pose"].float()
             gt_pose = gt_pose[0]
 
-            # create camera calibration matrix
             focal_length = float(sample["focal"].item())
-            cam_mat = torch.eye(3)
-            cam_mat[0, 0] = focal_length
-            cam_mat[1, 1] = focal_length
-            cam_mat[0, 2] = image.size(3) / 2
-            cam_mat[1, 2] = image.size(2) / 2
-            cam_mat = cam_mat.cuda()
 
             scene_coordinates = network(image.cuda())
             scene_coordinate_gradients = torch.zeros(scene_coordinates.size())
@@ -219,7 +210,7 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
             iteration = iteration + 1
 
     torch.save(
-        network.state_dict(), f"{opt.network}-{opt.dataset}-e2e-mask={using_masks}"
+        network.state_dict(), f"checkpoints/{opt.network}-{opt.dataset}-e2e-mask={using_masks}"
     )
 
 
