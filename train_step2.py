@@ -3,6 +3,8 @@ import random
 import time
 from pathlib import Path
 import torch
+from tqdm import tqdm
+
 import dsacstar
 import numpy as np
 import torch.optim as optim
@@ -165,7 +167,6 @@ def main_with_gt_keypoints(seed):
     net_weights = f"{opt.network}-{opt.dataset}-mask=False"
     if Path(net_weights).is_file():
         print(f"Found stage 1 training weights at {net_weights}")
-        print(f"Network will be saved into {opt.network}-{opt.dataset}-e2e-mask=False")
         if opt.mask:
             print(f"Mask dir is at {opt.maskdir}")
         network.load_state_dict(torch.load(net_weights))
@@ -193,6 +194,7 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
     network.train()
     optimizer = optim.Adam(network.parameters(), lr=opt.learningrate)
     iteration = 0
+    pbar = tqdm(total=epochs*len(trainset_loader), desc="Training")
 
     for epoch in range(epochs):
         for sample in trainset_loader:
@@ -236,13 +238,11 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
             torch.autograd.backward((scene_coordinates), (scene_coordinate_gradients.cuda()))
             optimizer.step()
             optimizer.zero_grad()
-
-            print('Iteration: %6d, Loss: %.2f \n' % (iteration, loss), flush=True)
-
             iteration = iteration + 1
+            pbar.update(1)
 
     torch.save(
-        network.state_dict(), f"{opt.network}-{opt.dataset}-e2e-mask={using_masks}"
+        network.state_dict(), f"checkpoints/net-{opt.dataset}-e2e-mask={using_masks}"
     )
 
 

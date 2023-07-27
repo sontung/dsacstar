@@ -247,7 +247,6 @@ double dsacstar_rgb_backward(
 		dsacstar::createSampling(imW, imH, subSampling, 0, 0);
 
 	// sample RANSAC hypotheses
-	std::cout << BLUETEXT("Sampling " << ransacHypotheses << " hypotheses.") << std::endl;
 	StopWatch stopW;
 
 	std::vector<dsacstar::pose_t> initHyps;
@@ -267,8 +266,6 @@ double dsacstar_rgb_backward(
 		imgPts,
 		objPts);
 
-	std::cout << "Done in " << stopW.stop() / 1000 << "s." << std::endl;	
-    std::cout << BLUETEXT("Calculating scores.") << std::endl;
 
 	// compute reprojection error images
 	std::vector<cv::Mat_<float>> reproErrs(ransacHypotheses);
@@ -294,10 +291,6 @@ double dsacstar_rgb_backward(
 	// apply soft max to scores to get a distribution
 	std::vector<double> hypProbs = dsacstar::softMax(scores);
 	double hypEntropy = dsacstar::entropy(hypProbs); // measure distribution entropy
-	std::cout << "Entropy: " << hypEntropy << std::endl;
-
-	std::cout << "Done in " << stopW.stop() / 1000 << "s." << std::endl;
-	std::cout << BLUETEXT("Refining poses:") << std::endl;
 
 	// collect inliers and refine poses
 	std::vector<dsacstar::pose_t> refHyps(ransacHypotheses);
@@ -323,8 +316,6 @@ double dsacstar_rgb_backward(
 			inlierMaps[h]);
 	}
 
-	std::cout << "Done in " << stopW.stop() / 1000 << "s." << std::endl;
-	
 	// calculate expected pose loss
 	double expectedLoss = 0;
 	std::vector<double> losses(refHyps.size());
@@ -342,7 +333,6 @@ double dsacstar_rgb_backward(
 	cv::Mat_<double> dLoss_dObj = cv::Mat_<double>::zeros(sampling.rows * sampling.cols, 3);
 
     // --- path I, hypothesis path --------------------------------------------------------------------
-    std::cout << BLUETEXT("Calculating gradients wrt hypotheses.") << std::endl;
 
     // precalculate gradients per of hypotheis wrt object coordinates
     std::vector<cv::Mat_<double>> dHyp_dObjs(refHyps.size());
@@ -437,11 +427,9 @@ double dsacstar_rgb_backward(
         gradients[h] = dLoss_dHyp * dHyp_dObjs[h];
     }
 
-	std::cout << "Done in " << stopW.stop() / 1000 << "s." << std::endl;
-    
+
     // --- path II, score path --------------------------------------------------------------------
 
-    std::cout << BLUETEXT("Calculating gradients wrt scores.") << std::endl;
 
     std::vector<cv::Mat_<double>> dLoss_dScore_dObjs = dsacstar::dSMScore(
     	sceneCoordinates,
@@ -457,7 +445,6 @@ double dsacstar_rgb_backward(
     	inlierThreshold,
     	maxReproj);
 
-    std::cout << "Done in " << stopW.stop() / 1000 << "s." << std::endl;
 
     // assemble full gradient tensor
     for(unsigned h = 0; h < refHyps.size(); h++)
