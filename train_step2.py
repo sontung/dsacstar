@@ -10,6 +10,8 @@ from torch.utils.data import DataLoader
 
 from dataset import CamLocDataset
 from network_dsac import DsacNet
+from skimage.transform import rotate as ski_rotate
+from skimage.transform import resize as ski_resize
 
 
 def return_opt():
@@ -24,6 +26,15 @@ def return_opt():
     parser.add_argument(
         "--image_dir", "-idir", type=str, default="..", help="dir for the images"
     )
+
+    parser.add_argument(
+        "--mask", "-mask", type=bool, default=False, help="using masks"
+    )
+
+    parser.add_argument(
+        "--maskdir", "-mdir", type=str, default="../vloc-optimization-understand/data", help="using masks"
+    )
+
 
     parser.add_argument(
         "--sfm_dir",
@@ -155,15 +166,27 @@ def main_with_gt_keypoints(seed):
     if Path(net_weights).is_file():
         print(f"Found stage 1 training weights at {net_weights}")
         print(f"Network will be saved into {opt.network}-{opt.dataset}-e2e-mask=False")
+        if opt.mask:
+            print(f"Mask dir is at {opt.maskdir}")
         network.load_state_dict(torch.load(net_weights))
         train_loop(
             network,
             trainset_loader,
             epochs,
             opt,
+            opt.mask,
         )
     else:
-        print(f"Init weights not found at {net_weights}")
+        if debug_mode:
+            train_loop(
+                network,
+                trainset_loader,
+                epochs,
+                opt,
+                opt.mask,
+            )
+        else:
+            print(f"Init weights not found at {net_weights}")
 
 
 def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
@@ -201,6 +224,14 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
                 network.OUTPUT_SUBSAMPLE,
                 random.randint(0, 1000000))  # used to initialize random number generator in C++
 
+            if using_masks:
+                mask = np.load(
+                    f"{opt.maskdir}/{opt.dataset}/masked_pixels/{sample['image_id'][0].item()}.npy"
+                )
+                mask = augment_mask(mask, sample["angle"][0], scene_coordinates.shape)
+                mask = torch.tensor(mask, dtype=torch.bool)
+                scene_coordinate_gradients[:, :, mask] = 0
+
             # update network parameters
             torch.autograd.backward((scene_coordinates), (scene_coordinate_gradients.cuda()))
             optimizer.step()
@@ -213,6 +244,15 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
     torch.save(
         network.state_dict(), f"{opt.network}-{opt.dataset}-e2e-mask={using_masks}"
     )
+
+
+def augment_mask(mask, angle, shape):
+    mask = mask.reshape(60, 80).astype(np.uint8)
+    mask = ski_resize(mask, shape[2:], order=0)
+    if angle != 0:
+        mask = ski_rotate(mask, angle, order=0, mode="constant", cval=0)
+    # mask = mask.reshape(-1)
+    return mask
 
 
 if __name__ == "__main__":
