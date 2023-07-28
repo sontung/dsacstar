@@ -129,7 +129,7 @@ def return_opt():
 
 
 def main_with_gt_keypoints(seed):
-    debug_mode = True
+    debug_mode = False
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
