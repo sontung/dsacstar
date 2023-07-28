@@ -54,7 +54,7 @@ def return_opt():
         "--iterations",
         "-iter",
         type=int,
-        default=1000000,
+        default=10000,
         help="number of training iterations, i.e. numer of model updates",
     )
 
@@ -129,7 +129,7 @@ def return_opt():
 
 
 def main_with_gt_keypoints(seed):
-    debug_mode = False
+    debug_mode = True
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -241,9 +241,9 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
             iteration = iteration + 1
             pbar.update(1)
 
-    torch.save(
-        network.state_dict(), f"checkpoints/net-{opt.dataset}-e2e-mask={using_masks}"
-    )
+        torch.save(
+            network.state_dict(), f"checkpoints/net-{opt.dataset}-e2e-mask={using_masks}"
+        )
 
 
 def augment_mask(mask, angle, shape):
