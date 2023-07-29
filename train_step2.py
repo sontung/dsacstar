@@ -194,6 +194,7 @@ def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
     network.train()
     optimizer = optim.Adam(network.parameters(), lr=opt.learningrate)
     iteration = 0
+    epochs = 100
     pbar = tqdm(total=epochs*len(trainset_loader), desc="Training")
 
     for epoch in range(epochs):
