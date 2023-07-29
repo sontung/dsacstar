@@ -127,6 +127,7 @@ class CamLocDataset(Dataset):
         self.bad_points = set([])
         self.good_pid_list = []
         self.image_id2kp = self.read_points_information()
+        self.image_id2pose = {}
 
     def return_bounds(self, computed=True):
         if not computed:
@@ -269,10 +270,14 @@ class CamLocDataset(Dataset):
         focal_length = self.recon_cameras[camera_id].params[0]
         qvec = self.recon_images[img_id].qvec
         tvec = self.recon_images[img_id].tvec
-        if not self.return_true_pose:
-            pose = utils.return_pose_mat_no_inv(qvec, tvec)
+        if img_id not in self.image_id2pose:
+            if not self.return_true_pose:
+                pose = utils.return_pose_mat_no_inv(qvec, tvec)
+            else:
+                pose = utils.return_pose_mat(qvec, tvec)
+            self.image_id2pose[img_id] = pose
         else:
-            pose = utils.return_pose_mat(qvec, tvec)
+            pose = self.image_id2pose[img_id]
         return camera_id, focal_length, pose, qvec, tvec
 
     def prepare_cam_info_no_inverse(self, img_id):
