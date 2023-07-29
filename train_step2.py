@@ -152,7 +152,7 @@ def main_with_gt_keypoints(seed):
         using_filter=False,
         disable_coord_map=True,
         whole_image=False,
-        return_true_pose=False,
+        return_true_pose=True,
     )
 
     trainset_loader = DataLoader(trainset, shuffle=True, num_workers=6, batch_size=1)
