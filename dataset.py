@@ -266,19 +266,19 @@ class CamLocDataset(Dataset):
         return pid2uv
 
     def prepare_cam_info(self, img_id):
-        camera_id = self.recon_images[img_id].camera_id
-        focal_length = self.recon_cameras[camera_id].params[0]
-        qvec = self.recon_images[img_id].qvec
-        tvec = self.recon_images[img_id].tvec
         if img_id not in self.image_id2pose:
+            camera_id = self.recon_images[img_id].camera_id
+            focal_length = self.recon_cameras[camera_id].params[0]
+            qvec = self.recon_images[img_id].qvec
+            tvec = self.recon_images[img_id].tvec
             if not self.return_true_pose:
                 pose = utils.return_pose_mat_no_inv(qvec, tvec)
             else:
                 pose = utils.return_pose_mat(qvec, tvec)
-            self.image_id2pose[img_id] = pose
+            self.image_id2pose[img_id] = (pose, focal_length, camera_id)
         else:
-            pose = self.image_id2pose[img_id]
-        return camera_id, focal_length, pose, qvec, tvec
+            pose, focal_length, camera_id = self.image_id2pose[img_id]
+        return camera_id, focal_length, np.copy(pose)
 
     def prepare_cam_info_no_inverse(self, img_id):
         camera_id = self.recon_images[img_id].camera_id
@@ -324,7 +324,7 @@ class CamLocDataset(Dataset):
 
         out_dict.update({"image_ori": image})
 
-        camera_id, focal_length, pose, qvec, tvec = self.prepare_cam_info(img_id)
+        camera_id, focal_length, pose = self.prepare_cam_info(img_id)
 
         camera_params = self.recon_cameras[camera_id].params
         out_dict.update({"params": camera_params})
@@ -404,7 +404,6 @@ class CamLocDataset(Dataset):
                 image = image_transformed
         else:
             image = self.image_transform_pt(image)
-            out_dict.update({"qvec": qvec, "tvec": tvec})
 
         out_dict.update({"pose": pose, "focal": focal_length})
         out_dict.update(

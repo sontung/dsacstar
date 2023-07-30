@@ -3,6 +3,7 @@ import random
 import time
 from pathlib import Path
 import torch
+import sys
 from tqdm import tqdm
 
 import dsacstar
@@ -179,15 +180,25 @@ def main_with_gt_keypoints(seed):
         )
     else:
         if debug_mode:
-            train_loop(
+            loop2(
                 network,
-                trainset_loader,
+                trainset,
                 epochs,
                 opt,
                 opt.mask,
             )
         else:
             print(f"Init weights not found at {net_weights}")
+
+
+def loop2(network, trainset_loader, epochs, opt, using_masks=False):
+    network.train()
+    epochs = 100
+    pbar = tqdm(total=epochs*len(trainset_loader), desc="Training")
+
+    for epoch in range(10):
+        for sample in trainset_loader:
+            pbar.update(1)
 
 
 def train_loop(network, trainset_loader, epochs, opt, using_masks=False):
